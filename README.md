@@ -192,6 +192,7 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 | Sample | Description |
 |---|---|
 | [AIDP Agent Chat — Web UI](ai/aidp_chat_client/web_ui/README.md) | Browser chat UI for any deployed AIDP agent: a Flask proxy that handles OCI request signing plus a single-page HTML frontend. Includes a one-command deploy script for OCI Container Instances. |
+| [APEX Chat with Inline Charts (over OAC via MCP)](ai/agent-flows/misc/apex-chat-charts-over-oac-mcp/) | Render an AIDP agent's answers as inline charts inside an Oracle APEX chat, driven by an agent-agnostic chart marker that both low-code and high-code agents emit. |
 
 #### Code-First Agent Flows
 
