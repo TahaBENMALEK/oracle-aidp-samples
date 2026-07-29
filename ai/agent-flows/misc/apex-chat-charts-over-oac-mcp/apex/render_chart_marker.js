@@ -34,8 +34,11 @@
   // Categorical palette. Replace with your own theme colours if you like.
   var PALETTE = ["#4f7fa8", "#5a9e6f", "#a3924e", "#b5544a", "#8a6d9e", "#6b8fb5", "#7cae8a", "#c98a3a"];
 
-  // Chart.js is fetched only for the donut. Pin the version you have vetted.
+  // Chart.js is fetched only for the donut. Pin the version you have vetted,
+  // and keep the SRI hash in sync with it (recompute when bumping the version:
+  //   curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A ).
   var CHARTJS_URL = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js";
+  var CHARTJS_SRI = "sha384-dug+JxfBvklEQdJ4AYuBBAIScUz0bVN73xpy273gcAwHjb3qI0fXmuYNaNfdyYJG";
 
   // Map the marker "type" to an oj-chart config. (donut is handled by Chart.js;
   // the "donut" branch here is only a safety fallback to a plain pie.)
@@ -65,6 +68,11 @@
       var restore = function () { window.define = savedDefine; };
       var s = document.createElement("script");
       s.src = CHARTJS_URL; s.async = true;
+      // Subresource Integrity: the browser refuses to run the script if the
+      // CDN response doesn't match the pinned hash (defense against a
+      // compromised or MITM'd CDN). crossorigin is required for SRI checks.
+      s.integrity = CHARTJS_SRI;
+      s.crossOrigin = "anonymous";
       s.onload  = function () { restore(); resolve(window.Chart); };
       s.onerror = function () { restore(); reject(new Error("Chart.js failed to load")); };
       document.head.appendChild(s);
@@ -180,7 +188,10 @@
 
   // Build the chart card element from a parsed marker spec. Returns the card, or null.
   function buildCard(spec) {
-    if (!spec || !spec.data || !spec.data.length) return null;
+    // data must be a real array — a malformed marker (e.g. "data":"...") would
+    // otherwise pass a truthiness check and throw inside .map(), and that
+    // exception would surface in the CALLER's dynamic action / observer.
+    if (!spec || !Array.isArray(spec.data) || !spec.data.length) return null;
     var rawType = String(spec.type || "hbar").toLowerCase();
 
     var card = document.createElement("div");
