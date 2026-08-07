@@ -51,6 +51,8 @@ self-contained - it loads Chart.js on demand and needs no extra CSS.
 
 - Inline charts rendered in the chat transcript, right under each answer.
 - Seven chart types from one marker: `hbar`, `pie`, `bar`, `line`, `donut`, `pyramid`, `funnel`.
+- **Time series on a real date axis:** when the breakdown is by date/period, the answer renders as a line on a chronological time axis. The renderer even upgrades a date-labelled `hbar`/`bar` to a time-axis line, so "count by year" looks right without relying on the model to pick `line`.
+- **Clickable bar legend:** `hbar`/`bar` charts get a per-category colour legend with click-to-hide, while keeping real bars.
 - **Agent-agnostic:** low-code (pasted instructions) and high-code (a prompt rule) emit the identical marker.
 - No build step: one plain JS file; Chart.js is fetched on demand only for the donut.
 
@@ -193,26 +195,36 @@ the raw reply:
 | `type`  | string | One of `hbar`, `pie`, `bar`, `line`, `donut`, `pyramid`, `funnel` (lowercase). |
 | `title` | string | Short chart title shown above the chart. |
 | `data`  | array  | One object per category: `{ "label": "<category>", "value": <number> }`. |
+| `xAxis` | string | **Optional, `line` only.** Set to `"time"` for a time series; then every `label` must be an ISO date (`"YYYY-MM-DD"`) in ascending order, and the chart renders on a real chronological axis. Set to `"category"` to force a plain axis (opt out of the auto time-axis upgrade). |
 
 `value` is a plain number (no quotes, thousands separators, or currency); include
 every row you listed. Valid JSON between `CHART:` and `-->` - no code fences, no
 second comment, nothing after `-->`.
 
+A time-series marker looks like this:
+
+```
+<!--CHART:{"type":"line","xAxis":"time","title":"Invoices by month","data":[{"label":"2026-01-01","value":120},{"label":"2026-02-01","value":150}]}-->
+```
+
 **Types**
 
 | `type` | Renders as | Good for |
 |--------|------------|----------|
-| `hbar` | Horizontal bar (default, auto) | Rankings and comparisons; long labels. |
-| `pie` | Pie (auto for composition) | Share of a whole. |
-| `bar` | Vertical bar | Comparisons where a vertical layout reads better. |
-| `line` | Line (auto for trends over time) | A value across an ordered sequence. |
-| `donut` | Donut with a centre total | Composition with the total called out (name it). |
+| `hbar` | Horizontal bar with a clickable category legend (default, auto) | Rankings and comparisons; long labels. |
+| `donut` | Donut with a centre total (auto for composition) | Share of a whole, total called out. |
+| `line` | Line; on a real time axis when `xAxis:"time"` (auto for date/time breakdowns) | A value across an ordered or time sequence. |
+| `bar` | Vertical bar with a clickable category legend | Comparisons where a vertical layout reads better. |
+| `pie` | Pie | Share of a whole (when explicitly asked). |
 | `pyramid` | Pyramid | Ranked stages / hierarchy. |
 | `funnel` | Funnel | Stages that shrink (e.g. a pipeline). |
 
-The agent **auto-picks only `hbar`, `pie`, or `line`**; `bar`, `donut`,
-`pyramid`, and `funnel` appear only when the user names them. The full
-selection rule the agent follows lives in the [`agent/`](agent/) files.
+The agent **auto-picks only `hbar`, `donut`, or a time-axis `line`**; `bar`,
+`pie`, `pyramid`, and `funnel` appear only when the user names them. Separately,
+the renderer upgrades any date-labelled `hbar`/`bar`/`line` to a time-axis line
+(unless the marker sets `xAxis:"category"`), so a "count by year" reads as a
+trend even if the agent picked `hbar`. The full selection rule the agent follows
+lives in the [`agent/`](agent/) files.
 
 ## Troubleshooting
 
@@ -221,6 +233,7 @@ selection rule the agent follows lives in the [`agent/`](agent/) files.
 | No chart appears | The marker never reached the browser | Confirm the raw reply (with the `<!--CHART...-->` comment) is what Step 3 reads; don't strip comments server-side. |
 | No chart, but the raw reply has a marker | Renderer not loaded, or not called | Confirm `render_chart_marker.js` is on the page (Step 2) and `renderAfter`/`scan` runs after the answer renders (Step 3). |
 | Donut shows as a full pie / is blank | Chart.js failed to load | Check the network request to the pinned Chart.js URL; the CDN host must be reachable. All other types use JET and need no CDN. |
+| A "count by year" renders as a line, not bars | The renderer auto-upgrades date-labelled data to a time-axis line | Expected. To force bars, set `"xAxis":"category"` in the marker (or the agent's rule). |
 | Chart renders twice | `scan()` ran more than once on the same answer | The `data-acp-charted` guard prevents this per element; make sure you reuse the same element, not a re-created one. |
 | Agent shows a table but no marker | The chart rule isn't in effect | Re-check Step 1 - the rule must be pasted/added after the agent's other instructions, and saved/redeployed. |
 

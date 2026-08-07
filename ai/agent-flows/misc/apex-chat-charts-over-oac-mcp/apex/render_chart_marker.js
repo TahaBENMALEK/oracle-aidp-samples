@@ -15,6 +15,14 @@
  *   - Oracle JET <oj-chart> renders:  hbar, pie, bar, line, pyramid, funnel
  *   - Chart.js renders:               donut  (JET oj-chart has no hole/cutout type)
  *
+ * Two things this renderer decides from the DATA, not the marker:
+ *   - Time series: if every "label" is a date/year AND the type is an auto count
+ *     type (hbar/bar/line), it renders a LINE on a real chronological time axis.
+ *     A model won't reliably pick "line" for "count by year", so we upgrade it
+ *     here. Set "xAxis":"category" in the marker to opt out (a deliberate bar-of-years).
+ *   - bar / hbar legend: a per-category colour legend with click-to-hide, while
+ *     keeping real bars (the single-series "Value" legend would be meaningless).
+ *
  * Dependencies:
  *   - Oracle JET (ships with APEX) provides <oj-chart>.
  *   - Chart.js is loaded on demand, and ONLY when a donut is requested.
@@ -186,6 +194,15 @@
     }).catch(function () { /* Chart.js unavailable: leave the titled card, never break the chat */ });
   }
 
+  // Parse a year / year-month / ISO-date label into a Date, or null if it isn't one.
+  // Used both to detect a time series and to normalise labels for the time axis.
+  function parseIsoDate(value) {
+    if (!value) return null;
+    var parsed = new Date(value);
+    if (isNaN(parsed.getTime())) return null;
+    return parsed;
+  }
+
   // Build the chart card element from a parsed marker spec. Returns the card, or null.
   function buildCard(spec) {
     // data must be a real array — a malformed marker (e.g. "data":"...") would
@@ -209,23 +226,51 @@
 
     // ALL OTHER TYPES: JET oj-chart.
     var cfg = chartType(rawType);
+
+    // TIME-SERIES UPGRADE (decided from the DATA, not the model): if every label
+    // is a year / year-month / full ISO date AND the type is an auto count type
+    // (hbar/bar/line), render a LINE on a real time axis. The strict pattern plus
+    // the parseIsoDate guard mean plain-integer or text categories never fire it.
+    // Explicit pie/donut/funnel/pyramid are left alone; "xAxis":"category" opts out.
+    var labelsAllDates = spec.data.length >= 2 && spec.data.every(function (d) {
+      return /^\d{4}(-\d{2}(-\d{2})?)?$/.test(String(d.label)) && !!parseIsoDate(String(d.label));
+    });
+    if (labelsAllDates && spec.xAxis !== "category" && (rawType === "hbar" || rawType === "bar" || rawType === "line")) {
+      rawType = "line"; spec.xAxis = "time"; cfg = chartType("line");
+    }
+
     // JET data shape:
     //   pie / funnel / pyramid -> ONE series PER category (1 group): distinct colours,
     //                             per-item legend + click-to-hide.
-    //   bar / hbar             -> one series across N groups, one colour per category.
-    //   line                   -> one series across N groups (markers set below).
+    //   line                   -> one series across N groups (xAxis:"time" -> date axis).
+    //   bar / hbar             -> one series across N groups; each item tagged
+    //                             categories:[label] so the custom legend can hide it.
     var nSeries = (cfg.type === "pie" || rawType === "funnel" || rawType === "pyramid");
     var isLine  = (rawType === "line");
+    var isBar   = (cfg.type === "bar");   // vertical bar AND hbar (hbar = bar + horizontal)
+    // TIME AXIS (line only): only when EVERY label is a real date do we render a
+    // chronological date axis; otherwise fall back to a plain category axis so a
+    // mislabelled marker never breaks the chart.
+    var isTimeAxis = isLine && spec.xAxis === "time" && spec.data.every(function (d) { return !!parseIsoDate(d.label); });
     var groups, series;
     if (nSeries) {
       groups = [spec.title || "Total"];
       series = spec.data.map(function (d, i) { return { name: String(d.label), items: [Number(d.value)], color: PALETTE[i % PALETTE.length] }; });
     } else if (isLine) {
-      groups = spec.data.map(function (d) { return String(d.label); });
+      // for a time axis, feed JET normalised ISO dates ("2018" -> "2018-01-01") so it parses + formats the ticks
+      groups = spec.data.map(function (d) {
+        if (isTimeAxis) { var dt = parseIsoDate(String(d.label)); if (dt) return dt.toISOString().slice(0, 10); }
+        return String(d.label);
+      });
       series = [{ name: spec.title || "Value", color: PALETTE[0], lineWidth: 3, items: spec.data.map(function (d) { return Number(d.value); }) }];
     } else {
+      // bar / hbar: displayInLegend:"off" hides the auto SERIES entry ("<title>") so
+      // the legend below shows ONLY the per-category items; categories:[label] links
+      // each bar to its legend item so a legend click hides/shows that one bar.
       groups = spec.data.map(function (d) { return String(d.label); });
-      series = [{ name: spec.title || "Value", items: spec.data.map(function (d, i) { return { value: Number(d.value), color: PALETTE[i % PALETTE.length] }; }) }];
+      series = [{ name: spec.title || "Value", displayInLegend: "off", items: spec.data.map(function (d, i) {
+        return { value: Number(d.value), color: PALETTE[i % PALETTE.length], categories: [String(d.label)] };
+      }) }];
     }
 
     var chart = document.createElement("oj-chart");
@@ -234,15 +279,27 @@
     chart.setAttribute("hover-behavior", "dim");
     chart.setAttribute("animation-on-display", "auto");
     if (nSeries) chart.setAttribute("hide-and-show-behavior", "withRescale");
+    if (isBar) {
+      // bar / hbar: keep the REAL bars (gaps + axis labels) AND add a per-category
+      // colour legend with click-to-unselect. hide-and-show-behavior + each item's
+      // categories (above) let a legend click filter that bar out.
+      chart.setAttribute("hide-and-show-behavior", "withRescale");
+      chart.setAttribute("legend", JSON.stringify({
+        rendered: "on",
+        position: "end",
+        sections: [{
+          items: spec.data.map(function (d, i) {
+            return { id: String(d.label), text: String(d.label), color: PALETTE[i % PALETTE.length], markerShape: "square", categories: [String(d.label)] };
+          })
+        }]
+      }));
+    }
     if (isLine) {
       // sparse single line: show a dot at each point, and drop the 1-item legend
       chart.setAttribute("style-defaults", JSON.stringify({ markerDisplayed: "on" }));
       chart.setAttribute("legend", JSON.stringify({ rendered: "off" }));
-    }
-    if (!nSeries && !isLine) {
-      // bar / hbar: the bars are already labeled on the axis, so the single-series
-      // legend ("Value") is redundant and misleading - drop it.
-      chart.setAttribute("legend", JSON.stringify({ rendered: "off" }));
+      // time-series: ISO-date group labels -> a real chronological, date-formatted x-axis
+      if (isTimeAxis) chart.setAttribute("time-axis-type", "enabled");
     }
     chart.style.width = "100%";
     chart.style.height = "340px";
