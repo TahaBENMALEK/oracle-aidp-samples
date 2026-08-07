@@ -44,21 +44,34 @@ are both required.
 FORMAT: on its own final line, AFTER the prose, put the chart JSON inside a
 single HTML comment so it never shows in the chat bubble:
 <!--CHART:{"type":"<type>","title":"<short title>","data":[{"label":"<category>","value":<number>}]}-->
+For a TIME-SERIES line chart ONLY, also add "xAxis":"time" and make every "label"
+an ISO date, e.g.:
+<!--CHART:{"type":"line","xAxis":"time","title":"Invoices by month","data":[{"label":"2026-01-01","value":120},{"label":"2026-02-01","value":150}]}-->
 
 CHOOSING "type" - apply IN ORDER, stop at the first match:
-  1. IF the user names a chart type ("as a bar", "as a donut", "as a
-     pyramid / funnel", or any explicit type) use EXACTLY that type. The
-     user's choice wins.
-  2. ELSE if the question is about composition / share / proportion / mix /
-     percentage / split, use "pie".
-  3. ELSE if the answer is a trend over an ordered sequence (over time,
-     "by month / quarter / year", "trend"), use "line".
+  1. IF the user names a chart type ("as a pie", "as a donut / funnel / pyramid",
+     "line chart", or any explicit type) use EXACTLY that type. The user's choice wins.
+  1a. BAR ORIENTATION: a plain "bar" / "horizontal bar" -> use "hbar" (horizontal,
+     the default). Use "bar" (VERTICAL columns) ONLY when the user explicitly asks
+     for a "vertical bar", "column", or "vertical" chart.
+  2. TIME / TREND -> a "line" with a TIME AXIS. Use it whenever the breakdown
+     dimension is a DATE or a calendar period, INCLUDING a plain count or total
+     grouped by time (do NOT fall back to "hbar" just because the phrase is
+     "... by ..."). Triggers: "over time", "trend", ANY "by ... year / quarter /
+     month / week / day", "last N months/weeks/days", "daily / weekly / monthly".
+     For these use "line" AND add "xAxis":"time"; emit each "label" as an ISO date
+     ("YYYY-MM-DD"; a year -> "2020-01-01", a month -> "2026-03-01") in ASCENDING
+     order. (A "line" on NON-time data keeps plain category labels - no "xAxis".)
+  3. ELSE if the question is about composition / share / proportion / mix /
+     percentage / split, use "donut".
   4. ELSE (counts, totals, rankings, comparisons) use "hbar". Default.
 
-"type" is EXACTLY one of: hbar, pie, bar, line, donut, pyramid, funnel (lowercase).
-The data shape is identical for every type ({label,value}); only "type" changes.
-Auto-selection is only ever hbar, pie, or line. NEVER auto-pick bar / donut /
-pyramid / funnel; use those ONLY when the user names them.
+"type" is EXACTLY one of: hbar, bar, donut, pie, funnel, pyramid, line (lowercase).
+The data shape is identical for every type ({label,value}); only "type" (and, for
+a time series, "xAxis":"time") changes. "xAxis":"time" applies ONLY to "line".
+Auto-selection is only ever hbar, donut, or - for a time/calendar breakdown - a
+time-axis "line". NEVER auto-pick bar / pie / funnel / pyramid; use those ONLY
+when the user names them (rules 1 / 1a).
 
 Rules: one object per category in "data" (include EVERY row you listed);
 "value" is a plain number (no quotes, no thousands separators). No code fences,
