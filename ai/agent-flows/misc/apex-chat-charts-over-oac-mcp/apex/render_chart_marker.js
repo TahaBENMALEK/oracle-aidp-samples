@@ -191,7 +191,31 @@
         },
         plugins: [centerTotal, slicePct]
       });
-    }).catch(function () { /* Chart.js unavailable: leave the titled card, never break the chat */ });
+    }).catch(function () {
+      // Chart.js unavailable (blocked CDN / offline). Since the agent AUTO-picks
+      // donut for composition questions, an empty card here would be the default
+      // failure mode on locked-down networks — so fall back to the JET pie
+      // (no CDN, same data, just no centre total) instead of giving up.
+      wrap.remove();
+      card.appendChild(buildJetChart("pie", spec));
+    });
+  }
+
+  // Build a JET <oj-chart> for the one-series-per-category types (pie & friends).
+  // Used by the donut CDN fallback; kept minimal on purpose.
+  function buildJetChart(jetType, spec) {
+    var chart = document.createElement("oj-chart");
+    chart.setAttribute("type", jetType);
+    chart.setAttribute("hover-behavior", "dim");
+    chart.setAttribute("animation-on-display", "auto");
+    chart.setAttribute("hide-and-show-behavior", "withRescale");
+    chart.style.width = "100%";
+    chart.style.height = "340px";
+    chart.setAttribute("groups", JSON.stringify([spec.title || "Total"]));
+    chart.setAttribute("series", JSON.stringify(spec.data.map(function (d, i) {
+      return { name: String(d.label), items: [Number(d.value)], color: PALETTE[i % PALETTE.length] };
+    })));
+    return chart;
   }
 
   // Parse a year / year-month / ISO-date label into a Date, or null if it isn't one.
@@ -233,7 +257,14 @@
     // the parseIsoDate guard mean plain-integer or text categories never fire it.
     // Explicit pie/donut/funnel/pyramid are left alone; "xAxis":"category" opts out.
     var labelsAllDates = spec.data.length >= 2 && spec.data.every(function (d) {
-      return /^\d{4}(-\d{2}(-\d{2})?)?$/.test(String(d.label)) && !!parseIsoDate(String(d.label));
+      var s = String(d.label);
+      if (!/^\d{4}(-\d{2}(-\d{2})?)?$/.test(s) || !parseIsoDate(s)) return false;
+      // A BARE 4-digit label is only a "year" inside a plausible window —
+      // otherwise 4-digit CATEGORY CODES (departments 1001/2001, ZIP/postal
+      // prefixes, PINs) would silently upgrade a ranking into a "time series"
+      // spanning the year 1001. Hyphenated labels (2026-03) are unambiguous.
+      if (/^\d{4}$/.test(s)) { var y = +s; if (y < 1900 || y > 2100) return false; }
+      return true;
     });
     if (labelsAllDates && spec.xAxis !== "category" && (rawType === "hbar" || rawType === "bar" || rawType === "line")) {
       rawType = "line"; spec.xAxis = "time"; cfg = chartType("line");

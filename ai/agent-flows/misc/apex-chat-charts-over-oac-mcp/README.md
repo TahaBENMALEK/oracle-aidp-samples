@@ -223,7 +223,9 @@ The agent **auto-picks only `hbar`, `donut`, or a time-axis `line`**; `bar`,
 `pie`, `pyramid`, and `funnel` appear only when the user names them. Separately,
 the renderer upgrades any date-labelled `hbar`/`bar`/`line` to a time-axis line
 (unless the marker sets `xAxis:"category"`), so a "count by year" reads as a
-trend even if the agent picked `hbar`. The full selection rule the agent follows
+trend even if the agent picked `hbar`. Bare 4-digit labels only count as years
+inside 1900–2100, so 4-digit category codes (departments, postal prefixes)
+never trigger the upgrade. The full selection rule the agent follows
 lives in the [`agent/`](agent/) files.
 
 ## Troubleshooting
@@ -232,7 +234,7 @@ lives in the [`agent/`](agent/) files.
 |---------|--------------|-----|
 | No chart appears | The marker never reached the browser | Confirm the raw reply (with the `<!--CHART...-->` comment) is what Step 3 reads; don't strip comments server-side. |
 | No chart, but the raw reply has a marker | Renderer not loaded, or not called | Confirm `render_chart_marker.js` is on the page (Step 2) and `renderAfter`/`scan` runs after the answer renders (Step 3). |
-| Donut shows as a full pie / is blank | Chart.js failed to load | Check the network request to the pinned Chart.js URL; the CDN host must be reachable. All other types use JET and need no CDN. |
+| Donut renders as a plain pie (no centre total) | Chart.js failed to load; the renderer fell back to the JET pie so the chart still shows | Check the network request to the pinned Chart.js URL; the CDN host must be reachable. All other types use JET and need no CDN. |
 | A "count by year" renders as a line, not bars | The renderer auto-upgrades date-labelled data to a time-axis line | Expected. To force bars, set `"xAxis":"category"` in the marker (or the agent's rule). |
 | Chart renders twice | `scan()` ran more than once on the same answer | The `data-acp-charted` guard prevents this per element; make sure you reuse the same element, not a re-created one. |
 | Agent shows a table but no marker | The chart rule isn't in effect | Re-check Step 1 - the rule must be pasted/added after the agent's other instructions, and saved/redeployed. |
