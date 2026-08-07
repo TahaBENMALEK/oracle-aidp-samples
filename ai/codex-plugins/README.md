@@ -15,6 +15,7 @@ A marketplace of OpenAI Codex CLI plugins for Oracle AI Data Platform (AIDP).
 | [`oracle-ai-data-platform-workbench-engineer-agent`](./plugins/oracle-ai-data-platform-workbench-engineer-agent/) | 0.1.0+codex.20260623113518 | Initial release | Full AIDP data-engineering surface in natural language: catalog discovery, SQL analysis, AI-in-SQL, Delta operations, pipelines, clusters, governance, agent flows, MLOps, migration, and workspace administration. |
 | [`oracle-ai-data-platform-workbench-spark-connectors`](./plugins/oracle-ai-data-platform-workbench-spark-connectors/) | 0.5.0 | Initial release | Generate AIDP Spark notebook connector code for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources. |
 | [`ask-aidp`](./plugins/ask-aidp/) | 0.7.2 | Initial release | Ask and operate Oracle AI Data Platform resources from Codex through aidp-cli and native SDK Git tools. |
+| [`oracle-ai-data-platform-fusion-autopilot`](./plugins/oracle-ai-data-platform-fusion-autopilot/) | 0.1.0-alpha | Initial release | Build and operate curated Oracle Fusion ERP/HCM/SCM-to-AIDP medallion pipelines (BICC extracts, bronze/silver/gold content packs, guarded bootstrap/seed/incremental runs), gold marts, OAC datasets, and MCP-authored workbooks. |
 
 ## Install
 
@@ -33,6 +34,7 @@ codex plugin add oracle-ai-data-platform-workbench-databricks-migrator@oracle-ai
 codex plugin add oracle-ai-data-platform-workbench-engineer-agent@oracle-aidp-codex
 codex plugin add oracle-ai-data-platform-workbench-spark-connectors@oracle-aidp-codex
 codex plugin add ask-aidp@oracle-aidp-codex
+codex plugin add oracle-ai-data-platform-fusion-autopilot@oracle-aidp-codex
 ```
 
 Verify:

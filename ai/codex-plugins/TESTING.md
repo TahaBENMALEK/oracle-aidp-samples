@@ -89,6 +89,14 @@ codex plugin add oracle-ai-data-platform-workbench-databricks-migrator@oracle-ai
 
 See [`plugins/oracle-ai-data-platform-workbench-databricks-migrator/README.md`](./plugins/oracle-ai-data-platform-workbench-databricks-migrator/README.md) for migrator-specific prerequisites and smoke tests.
 
+## Install Fusion Autopilot
+
+```bash
+codex plugin add oracle-ai-data-platform-fusion-autopilot@oracle-aidp-codex
+```
+
+See [`plugins/oracle-ai-data-platform-fusion-autopilot/README.md`](./plugins/oracle-ai-data-platform-fusion-autopilot/README.md) for Fusion/AIDP/OAC prerequisites, and its `tests/` for the unit suite (`make test` inside the plugin directory).
+
 ## Update
 
 ```bash
